@@ -1,0 +1,157 @@
+#include <Thread.h>
+#include <ThreadController.h>
+#include <Stepper.h>
+#include <PicoThread.h>
+
+
+String command;
+
+const int trigPin = 5;
+const int echoPin = 4;
+const int stepperPin = 3;
+const int pumpPin = 2;
+
+
+float duration;
+float distance;
+float reference = 15;
+
+const float STEPS_PER_REV = 32;
+const float GEAR_RED = 64;
+const float STEPS_PER_OUT_REV = STEPS_PER_REV * GEAR_RED;
+
+int StepsRequired;
+
+Stepper steppermotor_1(STEPS_PER_REV, 10, 12, 11 ,13);
+Stepper steppermotor_2(STEPS_PER_REV, 6, 8, 7 ,9);
+
+volatile bool stopmotors = false;
+
+
+
+ThreadController ThreadHandler = ThreadController();
+
+void readDistanceFunction() 
+{
+	while (true) 
+  {
+		digitalWrite(trigPin, LOW);
+		delayMicroseconds(2);
+		digitalWrite(trigPin, HIGH);
+		delayMicroseconds(10);
+		digitalWrite(trigPin, LOW);
+		duration = pulseIn(echoPin, HIGH);
+		distance = (duration * 0.034 / 2);
+		Serial.println(distance);
+		delay(1000);
+	}
+}
+
+
+// define the pump thread function
+void pumpThreadFunction() 
+{
+  while (!stopmotors)
+  {
+    digitalWrite(pumpPin, HIGH);
+  }
+  digitalWrite(pumpPin, LOW);
+}
+
+void turbineThreadFunction()
+{
+	while (!stopmotors) 
+  {
+    digitalWrite(pumpPin, HIGH);
+    steppermotor_1.step(StepsRequired);
+  }
+  steppermotor_1.step(-StepsRequired);
+	digitalWrite(pumpPin, LOW);
+      
+	}
+
+
+void nodventilThreadFunction() 
+{
+	while (!stopmotors) 
+  {
+		digitalWrite(pumpPin, HIGH);
+    steppermotor_1.step(StepsRequired);
+    steppermotor_2.step(StepsRequired);
+	}
+	digitalWrite(pumpPin, LOW);
+  steppermotor_1.step(-StepsRequired);
+  steppermotor_2.step(-StepsRequired);
+}
+
+
+// create the pump thread object
+Thread pumpThread = Thread();
+Thread turbineThread = Thread();
+Thread nodventilThread = Thread();
+Thread readDistanceThread = Thread();
+
+
+void setup() 
+{
+  Serial.begin(9600);
+
+  pinMode(trigPin, OUTPUT); 
+  pinMode(echoPin, INPUT); 
+  pinMode(pumpPin,OUTPUT); 
+  pinMode (stepperPin, OUTPUT);
+
+
+  pumpThread.onRun(pumpThreadFunction);
+  ThreadHandler.add(&pumpThread);
+
+  ThreadHandler.run();
+
+  turbineThread.onRun(turbineThreadFunction);
+  ThreadHandler.add(&turbineThread);
+
+  ThreadHandler.run();
+
+  nodventilThread.onRun(nodventilThreadFunction);
+  ThreadHandler.add(&nodventilThread);
+
+  ThreadHandler.run();
+
+  readDistanceThread.onRun(readDistanceFunction);
+  ThreadHandler.add(&readDistanceThread);
+  
+  ThreadHandler.run();
+}
+
+void loop() 
+{
+  readDistanceThread.run();
+  Serial.println(distance);
+
+ if (Serial.available() > 0) 
+ {
+    String command = Serial.readStringUntil('\n');
+    if (command == "Pump\n")
+    {
+      stopmotors = false;
+      pumpThread.run();
+      pumpThread.stop();
+    }
+    
+    else if (command == "Turbine\n")
+    {
+      stopmotors = false;
+      turbineThread.run();
+    } 
+    else if (command == "Nodventil\n")
+    {
+      stopmotors = false;
+      turbineThread.run();
+      nodventilThread.run();
+    } 
+    else if (command == "Stopp\n")
+    {
+      stopmotors = true;
+    }   
+    }
+ }
