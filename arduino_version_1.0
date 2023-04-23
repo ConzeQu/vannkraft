@@ -1,0 +1,182 @@
+#include <Stepper.h>
+
+String command;
+
+const int trigPin = 5;
+const int echoPin = 4;
+const int stepperPin = 3;
+const int pumpPin = 2;
+
+
+float duration;
+float distance;
+float reference = 15;
+
+const float STEPS_PER_REV = 32;
+const float GEAR_RED = 64;
+const float STEPS_PER_OUT_REV = STEPS_PER_REV * GEAR_RED;
+
+int StepsRequired;
+
+Stepper steppermotor_1(STEPS_PER_REV, 10, 12, 11 ,13);
+Stepper steppermotor_2(STEPS_PER_REV, 6, 8, 7 ,9);
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+  pinMode(pumpPin,OUTPUT); // Sender signal til pumpe-mosfet og blir satt som output
+  pinMode (stepperPin, OUTPUT); // sender signal til stepper-mosfet og blir satt til output
+}
+
+void loop() {
+  
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  // Calculating the distance
+  float distance = (duration * 0.034 / 2);
+  
+
+  Serial.println(distance);
+
+  if (Serial.available()) {
+    command = Serial.readStringUntil('\n');
+    command.trim();
+    
+    if (command.startsWith("ref:")) {
+        float referance = command.substring(4).toFloat();
+    }
+
+    if (command.equals("Pump")) {
+      digitalWrite(pumpPin, HIGH);
+      while (distance < reference)
+        {
+          digitalWrite(trigPin, LOW);
+          delayMicroseconds(2);
+          digitalWrite(trigPin, HIGH);
+          delayMicroseconds(10);
+          digitalWrite(trigPin, LOW);
+          duration = pulseIn(echoPin, HIGH);
+          distance = duration * 0.034 / 2;
+
+          digitalWrite(pumpPin, HIGH);
+          Serial.println(distance);
+          delay(1000);
+          if (Serial.available()) {
+            command = Serial.readStringUntil('\n');
+            command.trim();
+            if (command.equals("Stopp")){
+              break;
+            }
+          delay(1000);
+          }
+        }
+      digitalWrite(pumpPin,LOW);
+      Serial.println(distance);
+    }
+
+    
+    else if (command.equals("Turbine")) {
+      StepsRequired = STEPS_PER_OUT_REV;
+      steppermotor_1.setSpeed(500);
+      steppermotor_1.step(StepsRequired * 1.3);
+      digitalWrite(stepperPin, HIGH);
+      
+      while (distance > reference) {
+        digitalWrite(stepperPin, HIGH);
+        steppermotor_1.step(StepsRequired);
+        
+        // read distance again
+        digitalWrite(trigPin, LOW);
+        delayMicroseconds(2);
+        digitalWrite(trigPin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trigPin, LOW);
+        duration = pulseIn(echoPin, HIGH);
+        distance = duration * 0.034 / 2;
+        
+        Serial.println(distance);
+        delay(1000);
+        
+        if (Serial.available()) {
+          command = Serial.readStringUntil('\n');
+          command.trim();
+          if (command.equals("Stopp")) {
+            break;
+          }
+          digitalWrite(stepperPin, HIGH);
+          steppermotor_1.step(StepsRequired);
+        }
+        delay(500);
+        }
+      }
+      steppermotor_1.step(-StepsRequired);
+      digitalWrite(stepperPin, LOW);
+      Serial.println(distance);
+    }
+
+    else if (command.equals("Nodventil")) {
+      StepsRequired = STEPS_PER_OUT_REV;
+      steppermotor_1.setSpeed(500);
+      steppermotor_2.step(StepsRequired);
+      
+      StepsRequired = STEPS_PER_OUT_REV;
+      steppermotor_1.setSpeed(500);
+      steppermotor_2.step(StepsRequired);
+
+      digitalWrite(stepperPin, HIGH);
+      Serial.println(distance);
+      
+      while (distance < reference) {
+        digitalWrite(stepperPin, HIGH);
+        steppermotor_1.step(StepsRequired);
+        steppermotor_2.step(StepsRequired);
+        
+        digitalWrite(trigPin, LOW);
+        delayMicroseconds(2);
+        digitalWrite(trigPin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trigPin, LOW);
+        duration = pulseIn(echoPin, HIGH);
+        distance = duration * 0.034 / 2;
+        Serial.println(distance);
+        
+        if (Serial.available()) {
+          command = Serial.readStringUntil('\n');
+          command.trim();
+          if (command.equals("Stopp")) {
+            break;
+          }
+          delay(500);
+        }
+        
+        delay(500);
+        }
+      }
+      
+      steppermotor_1.step(-StepsRequired);
+      steppermotor_2.step(-StepsRequired);
+      digitalWrite(stepperPin, LOW);
+      Serial.println(distance);
+    }
+
+    else {
+      steppermotor_1.step(-StepsRequired);
+      steppermotor_2.step(-StepsRequired);
+      digitalWrite(pumpPin, LOW);
+      digitalWrite(stepperPin, LOW);
+      Serial.println(distance);
+      delay(500);
+    }
+  }
+
+  delay(1000);
+
+ }
+```
