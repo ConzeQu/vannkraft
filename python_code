@@ -1,0 +1,38 @@
+import serial
+import matplotlib.pyplot as plt
+import time
+
+if __name__ == '__main__':
+    ser = serial.Serial('/dev/ttyACM0',9600, timeout=1)
+    ser.flush()
+reference = 15
+water_level = []
+tid = []
+
+ser.write(f"ref:{reference}\n".encode())
+while True:
+    if ser.in_waiting > 0:
+        vann_nivaa = float(ser.readline().decode('ISO-8859-1').rstrip())
+        print(vann_nivaa)
+        water_level.append(vann_nivaa)
+        tid.append(time.time())
+        if (vann_nivaa) >=20.0:
+            ser.write(b"Pump\n")
+        elif (vann_nivaa) > 10.0 and vann_nivaa => 0:
+            ser.write(b"Turbine\n")
+        elif (vann_nivaa) >= 10.0:
+            ser.write(b"Nodventil\n")
+        else:
+            ser.write(b"Stopp\n")
+    #if len(water_level) > 20:
+      #  break
+
+
+plt.ylim(0,30)
+plt.plot(tid, water_level)
+plt.title("Trydgesnylter vannkraft Co")
+plt.xlabel("Tid")
+plt.ylabel("Vann Nivaa")
+plt.show()
+
+
