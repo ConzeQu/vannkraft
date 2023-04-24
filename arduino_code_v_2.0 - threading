@@ -2,7 +2,6 @@
 #include <ThreadController.h>
 #include <Stepper.h>
 
-
 String command;
 
 const int trigPin = 5;
@@ -24,27 +23,12 @@ int StepsRequired;
 Stepper steppermotor_1(STEPS_PER_REV, 10, 12, 11 ,13);
 Stepper steppermotor_2(STEPS_PER_REV, 6, 8, 7 ,9);
 
+
 volatile bool stopmotors = false;
 
 
 
 ThreadController ThreadHandler = ThreadController();
-
-void readDistanceFunction() 
-{
-	while (true) 
-  {
-		digitalWrite(trigPin, LOW);
-		delayMicroseconds(2);
-		digitalWrite(trigPin, HIGH);
-		delayMicroseconds(10);
-		digitalWrite(trigPin, LOW);
-		duration = pulseIn(echoPin, HIGH);
-		distance = (duration * 0.034 / 2);
-		Serial.println(distance);
-		delay(1000);
-	}
-}
 
 
 // define the pump thread function
@@ -91,62 +75,65 @@ Thread nodventilThread = Thread();
 Thread readDistanceThread = Thread();
 
 
+
 void setup() 
 {
   Serial.begin(9600);
-
   pinMode(trigPin, OUTPUT); 
   pinMode(echoPin, INPUT); 
   pinMode(pumpPin,OUTPUT); 
   pinMode (stepperPin, OUTPUT);
 
-
+  
   pumpThread.onRun(pumpThreadFunction);
   ThreadHandler.add(&pumpThread);
-
-  ThreadHandler.run();
 
   turbineThread.onRun(turbineThreadFunction);
   ThreadHandler.add(&turbineThread);
 
-  ThreadHandler.run();
-
   nodventilThread.onRun(nodventilThreadFunction);
   ThreadHandler.add(&nodventilThread);
-
-  ThreadHandler.run();
-
-  readDistanceThread.onRun(readDistanceFunction);
-  ThreadHandler.add(&readDistanceThread);
-  
-  ThreadHandler.run();
 }
 
 void loop() 
 {
-  readDistanceThread.run();
-  Serial.println(distance);
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  // Calculating the distance
+  float distance = (duration * 0.034 / 2);
 
- if (Serial.available() > 0) 
+  Serial.println(distance);
+  delay(1000);
+if (Serial.available() > 0) 
  {
     String command = Serial.readStringUntil('\n');
     if (command == "Pump\n")
     {
       stopmotors = false;
       pumpThread.run();
-      pumpThread.stop();
+      turbineThread.stop();
+      nodventilThread.stop();
     }
     
     else if (command == "Turbine\n")
     {
       stopmotors = false;
       turbineThread.run();
+      pumpThread.stop();
+      nodventilThread.stop();
     } 
     else if (command == "Nodventil\n")
     {
       stopmotors = false;
       turbineThread.run();
       nodventilThread.run();
+      pumpThread.stop();
     } 
     else if (command == "Stopp\n")
     {
