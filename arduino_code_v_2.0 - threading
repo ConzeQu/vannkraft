@@ -1,7 +1,6 @@
 #include <Thread.h>
 #include <ThreadController.h>
 #include <Stepper.h>
-#include <PicoThread.h>
 
 
 String command;
