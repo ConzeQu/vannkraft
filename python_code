@@ -1,6 +1,14 @@
 import serial
 import matplotlib.pyplot as plt
 import time
+import signal
+import sys
+
+
+def signal_handler(sig, frame):
+    plt.savefig("water_level_plot.png")  # Save the plot as an image file
+    plt.show()  # Show the complete plot
+    sys.exit(0)
 
 if __name__ == '__main__':
     ser = serial.Serial('/dev/ttyACM0',9600, timeout=1)
@@ -11,29 +19,33 @@ tid = []
 start_tid = time.time()
 
 ser.write(f"ref:{reference}\n".encode())
+
+signal.signal(signal.SIGINT, signal_handler)
+
 while True:
     if ser.in_waiting > 0:
-        vann_nivaa = float(ser.readline().decode('ISO-8859-1').rstrip())
+        vann_nivaa = int(ser.readline().decode('ISO-8859-1').rstrip())
         print(vann_nivaa)
-        water_level.append(vann_nivaa)
-        tid.append(time.time() - start_tid)
-        if (vann_nivaa) >=20.0:
+        #print(23 - vann_nivaa)
+        water_level.append(23- vann_nivaa)
+        tid.append(time.time()-start_tid)
+        if (vann_nivaa) >= 17.0:
             ser.write(b"Pump\n")
-        elif (vann_nivaa) > 10.0 and vann_nivaa => 0:
+        elif (vann_nivaa) >= 11.0 and vann_nivaa <= 16.0:
             ser.write(b"Turbine\n")
-        elif (vann_nivaa) >= 10.0:
+        elif (vann_nivaa) <= 10.0:
             ser.write(b"Nodventil\n")
         else:
             ser.write(b"Stopp\n")
-    #if len(water_level) > 20:
-      #  break
-
-
-plt.ylim(0,30)
-plt.plot(tid, water_level)
-plt.title("Trydgesnylter vannkraft Co")
-plt.xlabel("Tid")
-plt.ylabel("Vann Nivaa")
+        
+        plt.ylim(0,30)
+        plt.plot(tid, water_level)
+        plt.title("Trydgesnylter vannkraft Co")
+        plt.xlabel("Tid [s]")
+        plt.ylabel("Vann Nivaa [cm]")
+        plt.pause(0.5)
+        
+plt.savefig("vann_nivaa.png")
 plt.show()
 
 
