@@ -24,26 +24,27 @@ Stepper steppermotor_1(STEPS_PER_REV, 10, 12, 11 ,13);
 Stepper steppermotor_2(STEPS_PER_REV, 6, 8, 7 ,9);
 
 
-volatile bool stopmotors = false;
+volatile bool pumpOn = false;
+volatile bool turbineOn = false;
+volatile bool nodventilOn = false;
 
 
 
 ThreadController ThreadHandler = ThreadController();
 
 
-// define the pump thread function
-void pumpThreadFunction() 
+void pumpThread() 
 {
-  while (!stopmotors)
+  while (pumpOn)
   {
     digitalWrite(pumpPin, HIGH);
   }
   digitalWrite(pumpPin, LOW);
 }
 
-void turbineThreadFunction()
+void turbineThread()
 {
-	while (!stopmotors) 
+	while (turbineOn) 
   {
     digitalWrite(pumpPin, HIGH);
     steppermotor_1.step(StepsRequired);
@@ -54,9 +55,9 @@ void turbineThreadFunction()
 	}
 
 
-void nodventilThreadFunction() 
+void nodventilThread() 
 {
-	while (!stopmotors) 
+	while (nodventilOn) 
   {
 		digitalWrite(pumpPin, HIGH);
     steppermotor_1.step(StepsRequired);
@@ -85,13 +86,13 @@ void setup()
   pinMode (stepperPin, OUTPUT);
 
   
-  pumpThread.onRun(pumpThreadFunction);
+  pumpThread.onRun(pumpThread);
   ThreadHandler.add(&pumpThread);
 
-  turbineThread.onRun(turbineThreadFunction);
+  turbineThread.onRun(turbineThread);
   ThreadHandler.add(&turbineThread);
 
-  nodventilThread.onRun(nodventilThreadFunction);
+  nodventilThread.onRun(nodventilThread);
   ThreadHandler.add(&nodventilThread);
 }
 
@@ -99,45 +100,70 @@ void loop()
 {
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
-  // Sets the trigPin on HIGH state for 10 micro seconds
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
-  // Reads the echoPin, returns the sound wave travel time in microseconds
   duration = pulseIn(echoPin, HIGH);
-  // Calculating the distance
   float distance = (duration * 0.034 / 2);
 
   Serial.println(distance);
   delay(1000);
+
+
 if (Serial.available() > 0) 
  {
     String command = Serial.readStringUntil('\n');
     if (command == "Pump\n")
     {
-      stopmotors = false;
-      pumpThread.run();
-      turbineThread.stop();
-      nodventilThread.stop();
+      while distance ( distance > reference)
+      {
+        pumpOn = true;
+        turbineOn = false;
+        nodventilOn = false;
+        
+        pumpThread.run();
+      }
+    pumpOn = false;
+    turbineOn = false;
+    nodventilOn = false;
     }
     
     else if (command == "Turbine\n")
     {
-      stopmotors = false;
-      turbineThread.run();
-      pumpThread.stop();
-      nodventilThread.stop();
+      while ( distance < reference)
+      {
+        pumpOn = false;
+        turbineOn = true;
+        nodventilOn = false;
+
+        turbineThread.run();
+
+        // turbineThread.stop() // turbineThread.kill() // turbineThread.pause() // turbineThread.wait()
+
+      }
+      pumpOn = false;
+      turbineOn = false;
+      nodventilOn = false;
     } 
     else if (command == "Nodventil\n")
-    {
-      stopmotors = false;
-      turbineThread.run();
-      nodventilThread.run();
-      pumpThread.stop();
+    { 
+      while ( distance < reference)
+      {
+        pumpOn = false;
+        turbineOn = false;
+        nodventilOn = true;
+
+        nodventilThread.run();
+      }
+      pumpOn = false;
+      turbineOn = false;
+      nodventilOn = false;
     } 
     else if (command == "Stopp\n")
     {
-      stopmotors = true;
+      pumpOn = false;
+      turbineOn = false;
+      nodventilOn = false;
     }   
     }
  }
