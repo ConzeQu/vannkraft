@@ -6,8 +6,8 @@ String command;
 
 const int trigPin = 5;
 const int echoPin = 4;
-const int stepperPin = 3;
-const int pumpPin = 2;
+const int stepperPin = 2;
+const int pumpPin = 3;
 
 
 float duration;
@@ -38,6 +38,7 @@ void pumpThread()
   while (pumpOn)
   {
     digitalWrite(pumpPin, HIGH);
+    delay(100);
   }
   digitalWrite(pumpPin, LOW);
 }
@@ -46,8 +47,10 @@ void turbineThread()
 {
 	while (turbineOn) 
   {
+    StepsRequired = STEPS_PER_OUT_REV;
     digitalWrite(pumpPin, HIGH);
     steppermotor_1.step(StepsRequired);
+    delay(100);
   }
   steppermotor_1.step(-StepsRequired);
 	digitalWrite(pumpPin, LOW);
@@ -58,9 +61,11 @@ void nodventilThread()
 {
 	while (nodventilOn) 
   {
+    StepsRequired = STEPS_PER_OUT_REV;
 		digitalWrite(pumpPin, HIGH);
     steppermotor_1.step(StepsRequired);
     steppermotor_2.step(StepsRequired);
+    delay(100);
 	}
 	digitalWrite(pumpPin, LOW);
   steppermotor_1.step(-StepsRequired);
@@ -69,15 +74,19 @@ void nodventilThread()
 
 void readDistanceThread()
 {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  float distance = (duration * 0.034 / 2);
-  Serial.println(distance);
-  delay(1000);
+  while (true)
+  {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+    duration = pulseIn(echoPin, HIGH);
+    float distance = (duration * 0.034 / 2);
+    Serial.println(distance);
+    delay(1000);
+  }
+
 }
 
 
@@ -120,7 +129,7 @@ void loop()
 if (Serial.available() > 0) 
  {
     String command = Serial.readStringUntil('\n');
-    if (command == "Pump\n")
+    if (command.equals("Pump\n"))
     {
       while(distance > reference)
       {
@@ -135,7 +144,7 @@ if (Serial.available() > 0)
     nodventilOn = false;
     }
     
-    else if (command == "Turbine\n")
+    else if (command.equals("Turbine\n"))
     {
       while ( distance < reference)
       {
@@ -152,7 +161,7 @@ if (Serial.available() > 0)
       turbineOn = false;
       nodventilOn = false;
     } 
-    else if (command == "Nodventil\n")
+    else if (command.equals("Nodventil\n"))
     { 
       while ( distance < reference)
       {
@@ -166,7 +175,7 @@ if (Serial.available() > 0)
       turbineOn = false;
       nodventilOn = false;
     } 
-    else if (command == "Stopp\n")
+    else if (command.equals("Stopp\n"))
     {
       pumpOn = false;
       turbineOn = false;
