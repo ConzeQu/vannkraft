@@ -54,7 +54,6 @@ void turbineThread()
       
 	}
 
-
 void nodventilThread() 
 {
 	while (nodventilOn) 
@@ -68,12 +67,25 @@ void nodventilThread()
   steppermotor_2.step(-StepsRequired);
 }
 
+void readDistanceThread()
+{
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  float distance = (duration * 0.034 / 2);
+  Serial.println(distance);
+  delay(1000);
+}
 
-// create the pump thread object
-Thread pumpThread = Thread();
-Thread turbineThread = Thread();
-Thread nodventilThread = Thread();
-Thread readDistanceThread = Thread();
+
+
+Thread pumpThread_1 = Thread();
+Thread turbineThread_2 = Thread();
+Thread nodventilThread_3 = Thread();
+Thread readDistanceThread_4 = Thread();
 
 
 
@@ -86,42 +98,37 @@ void setup()
   pinMode (stepperPin, OUTPUT);
 
   
-  pumpThread.onRun(pumpThread);
-  ThreadHandler.add(&pumpThread);
+  pumpThread_1.onRun(pumpThread);
+  ThreadHandler.add(&pumpThread_1);
 
-  turbineThread.onRun(turbineThread);
-  ThreadHandler.add(&turbineThread);
+  turbineThread_2.onRun(turbineThread);
+  ThreadHandler.add(&turbineThread_2);
 
-  nodventilThread.onRun(nodventilThread);
-  ThreadHandler.add(&nodventilThread);
+  nodventilThread_3.onRun(nodventilThread);
+  ThreadHandler.add(&nodventilThread_3);
+
+  readDistanceThread_4.onRun(readDistanceThread);
+  ThreadHandler.add(&readDistanceThread_4);
+
 }
 
 void loop() 
 {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  float distance = (duration * 0.034 / 2);
 
-  Serial.println(distance);
-  delay(1000);
-
+  readDistanceThread_4.run();
 
 if (Serial.available() > 0) 
  {
     String command = Serial.readStringUntil('\n');
     if (command == "Pump\n")
     {
-      while distance ( distance > reference)
+      while(distance > reference)
       {
         pumpOn = true;
         turbineOn = false;
         nodventilOn = false;
         
-        pumpThread.run();
+        pumpThread_1.run();
       }
     pumpOn = false;
     turbineOn = false;
@@ -136,7 +143,7 @@ if (Serial.available() > 0)
         turbineOn = true;
         nodventilOn = false;
 
-        turbineThread.run();
+        turbineThread_2.run();
 
         // turbineThread.stop() // turbineThread.kill() // turbineThread.pause() // turbineThread.wait()
 
@@ -153,7 +160,7 @@ if (Serial.available() > 0)
         turbineOn = false;
         nodventilOn = true;
 
-        nodventilThread.run();
+        nodventilThread_3.run();
       }
       pumpOn = false;
       turbineOn = false;
